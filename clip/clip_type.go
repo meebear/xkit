@@ -149,3 +149,10 @@ func (f *clipFloat64) parse(s string) (err error) {
 	}
 	return
 }
+
+func (s *clipString) string() string { return string(*s) }
+
+func (s *clipString) parse(s_ string) (err error) {
+    *s = clipString(s_)
+	return
+}
