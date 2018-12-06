@@ -4,109 +4,164 @@ import (
 	"fmt"
 )
 
-type ArgType interface {
-    string() string
-    parse(s string) error
+type Option interface {
+	string() string
+	parse(s string) error
 }
 
 type option struct {
-    v ArgType
-    name string
-    desc string
-    hasArg bool
-    incrStep int
-    reverseFlag bool
+	v           Option
+	shortName   string
+	longName    string
+	desc        string
+	mustHasArg  bool
+	incrStep    int
+	reverseFlag bool
 }
 
 type command struct {
-    opts []*option
+	name, desc  string
+	opts        []*option
+	positionals []*option
+	subcmds     []*command
+
+	arguments []string
 }
 
 var RootCmd command
 
-
-func (c *command) ArgOption(v interface{}, name, desc string) *option {
-    var atv ArgType
-    switch v := v.(type) {
-	case *int:     atv = (*clipInt)(v)
-	case *int8:    atv = (*clipInt8)(v)
-	case *int16:   atv = (*clipInt16)(v)
-	case *int32:   atv = (*clipInt32)(v)
-	case *int64:   atv = (*clipInt64)(v)
-	case *uint:    atv = (*clipUint)(v)
-	case *uint8:   atv = (*clipUint8)(v)
-	case *uint16:  atv = (*clipUint16)(v)
-	case *uint32:  atv = (*clipUint32)(v)
-	case *bool:    atv = (*clipBool)(v)
-    case *float32: atv = (*clipFloat32)(v)
-    case *float64: atv = (*clipFloat64)(v)
-    case *string:  atv = (*clipString)(v)
-    default: panic("hello?")
-    }
-    o := &option{v:atv, name:name, desc:desc, hasArg:true}
-    c.opts = append(c.opts, o)
-    return o
+func ArgOption(v interface{}, shortName, longName, desc string) *option {
+	return RootCmd.ArgOption(v, shortName, longName, desc)
 }
 
-func (c *command) ArgOptionCustom(v ArgType, name, desc string) *option {
-    o := &option{v:v, name:name, desc:desc, hasArg:true}
-    c.opts = append(c.opts, o)
-    return o
+func ArgOptionCustom(v Option, shortName, longName, desc string) *option {
+	return RootCmd.ArgOptionCustom(v, shortName, longName, desc)
 }
 
-func (c *command) FlagOption(v *bool, name, desc string) *option {
-    o := &option{v:(*clipBool)(v), name:name, desc:desc, hasArg:false}
-    c.opts = append(c.opts, o)
-    return o
+func FlagOption(v *bool, shortName, longName, desc string) *option {
+	return RootCmd.FlagOption(v, shortName, longName, desc)
 }
 
-func (c *command) IncrOption(v *int, name, desc string) *option {
-    o := &option{v:(*clipInt)(v), name:name, desc:desc}
-    o.incrStep = 1 // default value
-    c.opts = append(c.opts, o)
-    return o
+func IncrOption(v *int, shortName, longName, desc string) *option {
+	return RootCmd.IncrOption(v, shortName, longName, desc)
+}
+
+func SubCommand(name, desc string) *command {
+	return RootCmd.SubCommand(name, desc)
+}
+
+func optConv(v interface{}) Option {
+	var ov Option
+	switch v := v.(type) {
+	case *bool:
+		ov = (*clipBool)(v)
+	case *int:
+		ov = (*clipInt)(v)
+	case *int8:
+		ov = (*clipInt8)(v)
+	case *int16:
+		ov = (*clipInt16)(v)
+	case *int32:
+		ov = (*clipInt32)(v)
+	case *int64:
+		ov = (*clipInt64)(v)
+	case *uint:
+		ov = (*clipUint)(v)
+	case *uint8:
+		ov = (*clipUint8)(v)
+	case *uint16:
+		ov = (*clipUint16)(v)
+	case *uint32:
+		ov = (*clipUint32)(v)
+	case *float32:
+		ov = (*clipFloat32)(v)
+	case *float64:
+		ov = (*clipFloat64)(v)
+	case *string:
+		ov = (*clipString)(v)
+	default:
+		panic("hello?")
+	}
+    return ov
+}
+
+func (c *command) Positional(v interface{}, name, desc string) *option {
+    ov := optConv(v)
+	o := &option{v: ov, longName: name, desc: desc}
+	c.positionals = append(c.positionals, o)
+	return o
+}
+
+func (c *command) PositionalCustom(v Option, name, desc string) *option {
+	o := &option{v: v, longName: name, desc: desc}
+	c.positionals = append(c.positionals, o)
+	return o
+}
+
+func (c *command) ArgOption(v interface{}, shortName, longName, desc string) *option {
+    ov := optConv(v)
+	o := &option{v: ov, shortName: shortName,
+		longName: longName, desc: desc, mustHasArg: true}
+	c.opts = append(c.opts, o)
+	return o
+}
+
+func (c *command) ArgOptionCustom(v Option, shortName, longName, desc string) *option {
+	o := &option{v: v, shortName: shortName, desc: desc, mustHasArg: true}
+	c.opts = append(c.opts, o)
+	return o
+}
+
+func (c *command) FlagOption(v *bool, shortName, longName, desc string) *option {
+	o := &option{v: (*clipBool)(v), shortName: shortName, desc: desc}
+	c.opts = append(c.opts, o)
+	return o
+}
+
+func (c *command) IncrOption(v *int, shortName, longName, desc string) *option {
+	o := &option{v: (*clipInt)(v), shortName: shortName, desc: desc, incrStep: 1}
+	c.opts = append(c.opts, o)
+	return o
+}
+
+func (c *command) SubCommand(name, desc string) *command {
+	sc := &command{name: name, desc: desc}
+	c.subcmds = append(c.subcmds, sc)
+	return sc
 }
 
 func (o *option) SetIncrStep(step int) *option {
-    if o.incrStep == 0 {
-        panic("cannot set increment step on non-increment option")
-    }
-    if step == 0 {
-        panic("increment step cannot be 0")
-    }
-    o.incrStep = step
-    return o
-}
-
-func ArgOption(v interface{}, name, desc string) *option {
-    return RootCmd.ArgOption(v, name, desc)
-}
-
-func ArgOptionCustom(v ArgType, name, desc string) *option {
-    return RootCmd.ArgOptionCustom(v, name, desc)
-}
-
-func FlagOption(v *bool, name, desc string) *option {
-    return RootCmd.FlagOption(v, name, desc)
-}
-
-func IncrOption(v *int, name, desc string) *option {
-    return RootCmd.IncrOption(v, name, desc)
-}
-
-func Parse(v interface{}, s string) error {
-	switch v := v.(type) {
-	case *int:    return ((*clipInt)(v)).parse(s)
-	case *int8:   return ((*clipInt8)(v)).parse(s)
-	case *int16:  return ((*clipInt16)(v)).parse(s)
-	case *int32:  return ((*clipInt32)(v)).parse(s)
-	case *int64:  return ((*clipInt64)(v)).parse(s)
-	case *uint:   return ((*clipUint)(v)).parse(s)
-	case *uint8:  return ((*clipUint8)(v)).parse(s)
-	case *uint16: return ((*clipUint16)(v)).parse(s)
-	case *uint32: return ((*clipUint32)(v)).parse(s)
-	case *uint64: return ((*clipUint64)(v)).parse(s)
-	default:      panic(fmt.Sprintf("Unsupported type %T", v))
+	if o.incrStep == 0 {
+		panic("cannot set increment step on non-increment option")
 	}
-    return nil
+	if step == 0 {
+		panic("increment step cannot be 0")
+	}
+	o.incrStep = step
+	return o
+}
+
+func (o *option) ReverseFlag() *option {
+	if _, ok := o.v.(*clipBool); !ok {
+		panic("ReverseFlag on non-bool option")
+	}
+	o.reverseFlag = true
+	return o
+}
+
+func PrintHelpCommand(c *command) {
+    fmt.Println("Command: ", c.name)
+    fmt.Println("  Options:")
+    for _, o := range c.opts {
+        fmt.Printf("%#v\n", o);
+    }
+    fmt.Println("  Positional:")
+    for _, p := range c.positionals {
+        fmt.Printf("%#v\n", p);
+    }
+    fmt.Println("  Sub-commands:")
+    for _, sc := range c.subcmds {
+        fmt.Printf("%s\n", sc.name);
+        PrintHelpCommand(sc)
+    }
 }
