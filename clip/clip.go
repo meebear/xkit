@@ -2,6 +2,7 @@ package clip
 
 import (
 	"fmt"
+    "os"
 )
 
 type Option interface {
@@ -17,6 +18,7 @@ type option struct {
 	mustHasArg  bool
 	incrStep    int
 	reverseFlag bool
+    hide        bool
 }
 
 type command struct {
@@ -29,6 +31,7 @@ type command struct {
 }
 
 var RootCmd command
+var cmdStack = []*command{&RootCmd}
 
 func ArgOption(v interface{}, shortName, longName, desc string) *option {
 	return RootCmd.ArgOption(v, shortName, longName, desc)
@@ -149,6 +152,11 @@ func (o *option) ReverseFlag() *option {
 	return o
 }
 
+func (o *option) Hide() *option {
+    o.hide = true
+    return o
+}
+
 func PrintHelpCommand(c *command) {
     fmt.Println("Command: ", c.name)
     fmt.Println("  Options:")
@@ -164,4 +172,67 @@ func PrintHelpCommand(c *command) {
         fmt.Printf("%s\n", sc.name);
         PrintHelpCommand(sc)
     }
+}
+
+func parseLongOpt(c *command, name string, str string) (consumed int, er error) {
+    return
+}
+
+func parseShortOpt(c *command, name string, str string) (consumed int, er error) {
+    return
+}
+
+func doParse(c *command, ss []string) (
+      consumed int, sc *command, er error) {
+    if ss[0][0] == '-' {
+        if len(ss[0]) == 1 {
+            fmt.Println("warning: option '-' ignored")
+            consumed = 1
+            return
+        } else if ss[0][1] == '-' {
+            if len(ss[0]) == 2 {
+                return // '--' start arguments
+            } else {
+                consumed, er = parseLongOpt(c, ss[0][2:], ss[1])
+                return
+            }
+        } else {
+            consumed, er = parseShortOpt(c, ss[0][1:], ss[1])
+            return
+        }
+    } else {
+        // parsePositional or subcommand
+    }
+    return
+}
+
+func parseCommand(c *command, args []string) (*command, error) {
+    var err error
+    for len(args) > 0 {
+        n := 1
+        if len(args) > 1 {
+            n = 2
+        }
+        consumed, sc, err := doParse(c, args[:n])
+        if err != nil {
+            c = nil
+            break
+        }
+
+        if consumed > 0 {
+            args = args[consumed:]
+            if sc != nil {
+                cmdStack = append(cmdStack, sc)
+                c = sc
+            }
+        } else {
+            c.arguments = args
+            break
+        }
+    }
+    return c, err
+}
+
+func Parse() (*command, error) {
+    return parseCommand(&RootCmd, os.Args[1:])
 }

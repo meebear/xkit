@@ -8,7 +8,11 @@ import (
 var num int
 
 func main() {
-    o := clip.ArgOption(&num, "num", "", "just a number")
+    clip.ArgOption(&num, "num", "", "just a number")
 
-    fmt.Printf("%v  -- %#v\n", &num, o)
+    clip.PrintHelpCommand(&clip.RootCmd)
+
+    clip.Parse()
+
+    fmt.Println("done")
 }
