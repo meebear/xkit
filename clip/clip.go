@@ -3,6 +3,7 @@ package clip
 import (
 	"fmt"
     "os"
+    "strings"
 )
 
 type Option interface {
@@ -15,10 +16,11 @@ type option struct {
 	shortName   string
 	longName    string
 	desc        string
-	mustHasArg  bool
+	hasArg      bool
 	incrStep    int
 	reverseFlag bool
     hide        bool
+    set_        bool
 }
 
 type command struct {
@@ -104,13 +106,13 @@ func (c *command) PositionalCustom(v Option, name, desc string) *option {
 func (c *command) ArgOption(v interface{}, shortName, longName, desc string) *option {
     ov := optConv(v)
 	o := &option{v: ov, shortName: shortName,
-		longName: longName, desc: desc, mustHasArg: true}
+		longName: longName, desc: desc, hasArg: true}
 	c.opts = append(c.opts, o)
 	return o
 }
 
 func (c *command) ArgOptionCustom(v Option, shortName, longName, desc string) *option {
-	o := &option{v: v, shortName: shortName, desc: desc, mustHasArg: true}
+	o := &option{v: v, shortName: shortName, desc: desc, hasArg: true}
 	c.opts = append(c.opts, o)
 	return o
 }
@@ -175,6 +177,37 @@ func PrintHelpCommand(c *command) {
 }
 
 func parseLongOpt(c *command, name string, str string) (consumed int, er error) {
+    kv := strings.Split(name, "=")
+    set := false
+    for _, o := range c.opts {
+        if kv[0] == o.longName {
+            if o.hasArg {
+                if len(kv) == 2 {
+                    fmt.Printf("Set long option %s=%s\n", kv[0], kv[1])
+                    consumed = 1
+                    set, o.set_ = true, true
+                } else if len(str) > 0 {
+                    fmt.Printf("Set long option %s=%s\n", kv[0], str)
+                    consumed = 2
+                    set, o.set_ = true, true
+                } else {
+                    er = fmt.Errorf("optino '%s' does not take argument", kv[0])
+                    return
+                }
+            } else {
+                if len(kv) > 1 {
+                    er = fmt.Errorf("optino '%s' does not take argument", kv[0])
+                    return
+                }
+                fmt.Printf("Set long option %s\n", kv[0])
+                consumed = 1
+                set, o.set_ = true, true
+            }
+        }
+    }
+    if !set {
+        er = fmt.Errorf("option '%s' not recognized", kv[0])
+    }
     return
 }
 
