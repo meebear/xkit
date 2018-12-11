@@ -3,6 +3,8 @@ package main
 import (
     "xkit/mytest/clip"
     "fmt"
+    "time"
+    "net"
 )
 
 type config struct {
@@ -12,6 +14,8 @@ type config struct {
     enabled bool
     target string
     target2 string
+    dura time.Duration
+    ip net.IP
 }
 var cfg config
 var cfg2 config
@@ -23,6 +27,8 @@ func main() {
     clip.FlagOption(&cfg.enabled, 'e', "enable", "enable")
     clip.Positional(&cfg.target, "target", "target")
     clip.Positional(&cfg.target2, "target2", "target2")
+    clip.ArgOption(&cfg.dura, 'd', "dura", "duration")
+    clip.ArgOption(&cfg.ip, 'i', "ip", "duration")
 
     c := clip.SubCommand("cmd", "next level")
     c.ArgOption(&cfg2.port, 'p', "port", "port-0")

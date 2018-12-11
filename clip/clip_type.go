@@ -3,6 +3,8 @@ package clip
 import (
 	"fmt"
 	"strconv"
+    "time"
+    "net"
 )
 
 type (
@@ -24,31 +26,33 @@ type (
 
     clipString string
 
+    clipDura time.Duration
+
     //clipDate
     //clipTime
-    //clipDura
-    //clipIP
+
+    clipIP  net.IP
 )
 
-func (i *clipInt) string() string    { return fmt.Sprintf("%d", *i) }
-func (i *clipInt8) string() string   { return fmt.Sprintf("%d", *i) }
-func (i *clipInt16) string() string  { return fmt.Sprintf("%d", *i) }
-func (i *clipInt32) string() string  { return fmt.Sprintf("%d", *i) }
-func (i *clipInt64) string() string  { return fmt.Sprintf("%d", *i) }
-func (i *clipUint) string() string   { return fmt.Sprintf("%d", *i) }
-func (i *clipUint8) string() string  { return fmt.Sprintf("%d", *i) }
-func (i *clipUint16) string() string { return fmt.Sprintf("%d", *i) }
-func (i *clipUint32) string() string { return fmt.Sprintf("%d", *i) }
-func (i *clipUint64) string() string { return fmt.Sprintf("%d", *i) }
+func (i *clipInt) String() string    { return fmt.Sprintf("%d", *i) }
+func (i *clipInt8) String() string   { return fmt.Sprintf("%d", *i) }
+func (i *clipInt16) String() string  { return fmt.Sprintf("%d", *i) }
+func (i *clipInt32) String() string  { return fmt.Sprintf("%d", *i) }
+func (i *clipInt64) String() string  { return fmt.Sprintf("%d", *i) }
+func (i *clipUint) String() string   { return fmt.Sprintf("%d", *i) }
+func (i *clipUint8) String() string  { return fmt.Sprintf("%d", *i) }
+func (i *clipUint16) String() string { return fmt.Sprintf("%d", *i) }
+func (i *clipUint32) String() string { return fmt.Sprintf("%d", *i) }
+func (i *clipUint64) String() string { return fmt.Sprintf("%d", *i) }
 
-func (i *clipInt) parse(s string) (err error) {
+func (i *clipInt) Parse(s string) (err error) {
 	if s, err := strconv.ParseInt(s, 0, 0); err == nil {
 		*i = clipInt(s)
 	}
 	return
 }
 
-func (i *clipInt8) parse(s string) (err error) {
+func (i *clipInt8) Parse(s string) (err error) {
 	v, err := strconv.ParseInt(s, 0, 8)
 	if err == nil {
 		*i = clipInt8(v)
@@ -56,7 +60,7 @@ func (i *clipInt8) parse(s string) (err error) {
 	return
 }
 
-func (i *clipInt16) parse(s string) (err error) {
+func (i *clipInt16) Parse(s string) (err error) {
 	v, err := strconv.ParseInt(s, 0, 16)
 	if err == nil {
 		*i = clipInt16(v)
@@ -64,7 +68,7 @@ func (i *clipInt16) parse(s string) (err error) {
 	return
 }
 
-func (i *clipInt32) parse(s string) (err error) {
+func (i *clipInt32) Parse(s string) (err error) {
 	v, err := strconv.ParseInt(s, 0, 32)
 	if err == nil {
 		*i = clipInt32(v)
@@ -72,7 +76,7 @@ func (i *clipInt32) parse(s string) (err error) {
 	return
 }
 
-func (i *clipInt64) parse(s string) (err error) {
+func (i *clipInt64) Parse(s string) (err error) {
 	v, err := strconv.ParseInt(s, 0, 64)
 	if err == nil {
 		*i = clipInt64(v)
@@ -80,7 +84,7 @@ func (i *clipInt64) parse(s string) (err error) {
 	return
 }
 
-func (i *clipUint) parse(s string) (err error) {
+func (i *clipUint) Parse(s string) (err error) {
 	v, err := strconv.ParseUint(s, 0, 0)
 	if err == nil {
 		*i = clipUint(v)
@@ -88,7 +92,7 @@ func (i *clipUint) parse(s string) (err error) {
 	return
 }
 
-func (i *clipUint8) parse(s string) (err error) {
+func (i *clipUint8) Parse(s string) (err error) {
 	v, err := strconv.ParseUint(s, 0, 8)
 	if err == nil {
 		*i = clipUint8(v)
@@ -96,7 +100,7 @@ func (i *clipUint8) parse(s string) (err error) {
 	return
 }
 
-func (i *clipUint16) parse(s string) (err error) {
+func (i *clipUint16) Parse(s string) (err error) {
 	v, err := strconv.ParseUint(s, 0, 16)
 	if err == nil {
 		*i = clipUint16(v)
@@ -104,7 +108,7 @@ func (i *clipUint16) parse(s string) (err error) {
 	return
 }
 
-func (i *clipUint32) parse(s string) (err error) {
+func (i *clipUint32) Parse(s string) (err error) {
 	v, err := strconv.ParseUint(s, 0, 32)
 	if err == nil {
 		*i = clipUint32(v)
@@ -112,7 +116,7 @@ func (i *clipUint32) parse(s string) (err error) {
 	return
 }
 
-func (i *clipUint64) parse(s string) (err error) {
+func (i *clipUint64) Parse(s string) (err error) {
 	v, err := strconv.ParseUint(s, 0, 64)
 	if err == nil {
 		*i = clipUint64(v)
@@ -120,9 +124,9 @@ func (i *clipUint64) parse(s string) (err error) {
 	return
 }
 
-func (b *clipBool) string() string { return fmt.Sprintf("%v", *b) }
+func (b *clipBool) String() string { return fmt.Sprintf("%v", *b) }
 
-func (b *clipBool) parse(s string) (err error) {
+func (b *clipBool) Parse(s string) (err error) {
 	v, err := strconv.ParseBool(s)
 	if err == nil {
 		*b = clipBool(v)
@@ -130,9 +134,9 @@ func (b *clipBool) parse(s string) (err error) {
 	return
 }
 
-func (f *clipFloat32) string() string { return fmt.Sprintf("%g", *f) }
+func (f *clipFloat32) String() string { return fmt.Sprintf("%g", *f) }
 
-func (f *clipFloat32) parse(s string) (err error) {
+func (f *clipFloat32) Parse(s string) (err error) {
 	v, err := strconv.ParseFloat(s, 32)
 	if err == nil {
 		*f = clipFloat32(v)
@@ -140,9 +144,9 @@ func (f *clipFloat32) parse(s string) (err error) {
 	return
 }
 
-func (f *clipFloat64) string() string { return fmt.Sprintf("%g", *f) }
+func (f *clipFloat64) String() string { return fmt.Sprintf("%g", *f) }
 
-func (f *clipFloat64) parse(s string) (err error) {
+func (f *clipFloat64) Parse(s string) (err error) {
 	v, err := strconv.ParseFloat(s, 64)
 	if err == nil {
 		*f = clipFloat64(v)
@@ -150,9 +154,31 @@ func (f *clipFloat64) parse(s string) (err error) {
 	return
 }
 
-func (s *clipString) string() string { return string(*s) }
+func (s *clipString) String() string { return string(*s) }
 
-func (s *clipString) parse(s_ string) (err error) {
+func (s *clipString) Parse(s_ string) (err error) {
     *s = clipString(s_)
 	return
+}
+
+func (d *clipDura) String() string { return fmt.Sprintf("%s", time.Duration(*d)) }
+
+func (d *clipDura) Parse(d_ string) (err error) {
+    v, err := time.ParseDuration(d_)
+    if (err == nil) {
+        *d = clipDura(v)
+    }
+    return
+}
+
+func (i *clipIP) String() string { return fmt.Sprintf("%s", net.IP(*i)) }
+
+func (i *clipIP) Parse(i_ string) (err error) {
+    v := net.ParseIP(i_)
+    if v != nil {
+        *i = clipIP(v)
+    } else {
+        err = fmt.Errorf("'%s' is not valid IP address", i_)
+    }
+    return
 }

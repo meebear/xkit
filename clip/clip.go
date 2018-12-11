@@ -1,36 +1,42 @@
 package clip
 
 import (
-	"fmt"
+    "fmt"
     "os"
+    "time"
     "strings"
+    "net"
 )
 
+// need pointer receiver
 type Option interface {
-	string() string
-	parse(s string) error
+    String() string
+    Parse(s string) error
 }
 
 type option struct {
-	v           Option
-	shortName   byte
-	longName    string
-	desc        string
-	hasArg      bool
-	incrStep    int
-	reverseFlag bool
+    v           Option
+    shortName   byte
+    longName    string
+    desc        string
+
+    hasArg      bool
+    incrStep    int
+
+    reverseFlag bool
     hide        bool
     repeatable  bool
+
     set_        bool
 }
 
 type command struct {
-	name, desc  string
-	opts        []*option
-	positionals []*option
-	subcmds     []*command
+    name, desc  string
+    opts        []*option
+    positionals []*option
+    subcmds     []*command
 
-	Arguments []string
+    Arguments   []string
 
     parent_     *command
 }
@@ -38,127 +44,112 @@ type command struct {
 var RootCmd command
 
 func ArgOption(v interface{}, shortName byte, longName, desc string) *option {
-	return RootCmd.ArgOption(v, shortName, longName, desc)
+    return RootCmd.ArgOption(v, shortName, longName, desc)
 }
 
 func ArgOptionCustom(v Option, shortName byte, longName, desc string) *option {
-	return RootCmd.ArgOptionCustom(v, shortName, longName, desc)
+    return RootCmd.ArgOptionCustom(v, shortName, longName, desc)
 }
 
 func FlagOption(v *bool, shortName byte, longName, desc string) *option {
-	return RootCmd.FlagOption(v, shortName, longName, desc)
+    return RootCmd.FlagOption(v, shortName, longName, desc)
 }
 
 func IncrOption(v *int, shortName byte, longName, desc string) *option {
-	return RootCmd.IncrOption(v, shortName, longName, desc)
+    return RootCmd.IncrOption(v, shortName, longName, desc)
 }
 
 func Positional(v interface{}, name, desc string) *option {
-	return RootCmd.Positional(v, name, desc)
+    return RootCmd.Positional(v, name, desc)
 }
 
 func SubCommand(name, desc string) *command {
-	return RootCmd.SubCommand(name, desc)
+    return RootCmd.SubCommand(name, desc)
 }
 
 func optConv(v interface{}) Option {
-	var ov Option
-	switch v := v.(type) {
-	case *bool:
-		ov = (*clipBool)(v)
-	case *int:
-		ov = (*clipInt)(v)
-	case *int8:
-		ov = (*clipInt8)(v)
-	case *int16:
-		ov = (*clipInt16)(v)
-	case *int32:
-		ov = (*clipInt32)(v)
-	case *int64:
-		ov = (*clipInt64)(v)
-	case *uint:
-		ov = (*clipUint)(v)
-	case *uint8:
-		ov = (*clipUint8)(v)
-	case *uint16:
-		ov = (*clipUint16)(v)
-	case *uint32:
-		ov = (*clipUint32)(v)
-	case *float32:
-		ov = (*clipFloat32)(v)
-	case *float64:
-		ov = (*clipFloat64)(v)
-	case *string:
-		ov = (*clipString)(v)
-	default:
-		panic("hello?")
-	}
+    var ov Option
+    switch v := v.(type) {
+    case *bool:   ov = (*clipBool)(v)
+    case *int:    ov = (*clipInt)(v)
+    case *int8:   ov = (*clipInt8)(v)
+    case *int16:  ov = (*clipInt16)(v)
+    case *int32:  ov = (*clipInt32)(v)
+    case *int64:  ov = (*clipInt64)(v)
+    case *uint:   ov = (*clipUint)(v)
+    case *uint8:  ov = (*clipUint8)(v)
+    case *uint16: ov = (*clipUint16)(v)
+    case *uint32: ov = (*clipUint32)(v)
+    case *float32:ov = (*clipFloat32)(v)
+    case *float64:ov = (*clipFloat64)(v)
+    case *string: ov = (*clipString)(v)
+    case *time.Duration: ov = (*clipDura)(v)
+    case *net.IP: ov = (*clipIP)(v)
+    default: panic(fmt.Sprintf("use _Custom() for option type %T", v))
+    }
     return ov
 }
 
 func (c *command) Positional(v interface{}, name, desc string) *option {
-    ov := optConv(v)
-	o := &option{v: ov, longName: name, desc: desc}
-	c.positionals = append(c.positionals, o)
-	return o
+    o := &option{v: optConv(v), longName: name, desc: desc}
+    c.positionals = append(c.positionals, o)
+    return o
 }
 
 func (c *command) PositionalCustom(v Option, name, desc string) *option {
-	o := &option{v: v, longName: name, desc: desc}
-	c.positionals = append(c.positionals, o)
-	return o
+    o := &option{v: v, longName: name, desc: desc}
+    c.positionals = append(c.positionals, o)
+    return o
 }
 
 func (c *command) ArgOption(v interface{}, shortName byte, longName, desc string) *option {
-    ov := optConv(v)
-	o := &option{v: ov, shortName: shortName,
-		longName: longName, desc: desc, hasArg: true}
-	c.opts = append(c.opts, o)
-	return o
+    o := &option{v: optConv(v), shortName: shortName, longName: longName, desc: desc, hasArg: true}
+    c.opts = append(c.opts, o)
+    return o
 }
 
 func (c *command) ArgOptionCustom(v Option, shortName byte, longName, desc string) *option {
-	o := &option{v: v, shortName: shortName, desc: desc, hasArg: true}
-	c.opts = append(c.opts, o)
-	return o
+    o := &option{v: v, shortName: shortName, desc: desc, hasArg: true}
+    c.opts = append(c.opts, o)
+    return o
 }
 
 func (c *command) FlagOption(v *bool, shortName byte, longName, desc string) *option {
     o := &option{v: (*clipBool)(v), shortName: shortName, longName: longName, desc: desc}
-	c.opts = append(c.opts, o)
-	return o
+    c.opts = append(c.opts, o)
+    return o
 }
 
 func (c *command) IncrOption(v *int, shortName byte, longName, desc string) *option {
     o := &option{v: (*clipInt)(v), shortName: shortName, longName: longName,
         desc: desc, incrStep: 1, repeatable: true}
-	c.opts = append(c.opts, o)
-	return o
+    c.opts = append(c.opts, o)
+    return o
 }
 
 func (c *command) SubCommand(name, desc string) *command {
     sc := &command{name: name, desc: desc, parent_: c}
-	c.subcmds = append(c.subcmds, sc)
-	return sc
+    c.subcmds = append(c.subcmds, sc)
+    return sc
 }
 
 func (o *option) SetIncrStep(step int) *option {
-	if o.incrStep == 0 {
-		panic("cannot set increment step on non-increment option")
-	}
-	if step == 0 {
-		panic("increment step cannot be 0")
-	}
-	o.incrStep = step
-	return o
+    if o.incrStep == 0 {
+        panic("cannot set increment step on non-increment option")
+    }
+    if step == 0 {
+        panic("increment step cannot be 0")
+    }
+    o.incrStep = step
+    return o
 }
 
 func (o *option) ReverseFlag() *option {
-	if _, ok := o.v.(*clipBool); !ok {
-		panic("ReverseFlag on non-bool option")
-	}
-	o.reverseFlag = true
-	return o
+    if _, ok := o.v.(*clipBool); !ok {
+        panic("ReverseFlag on non-bool option")
+    }
+    o.reverseFlag = true
+    return o
 }
 
 func (o *option) Hide() *option {
@@ -169,23 +160,6 @@ func (o *option) Hide() *option {
 func (o *option) Repeatable(r bool) *option {
     o.repeatable = r
     return o
-}
-
-func PrintHelpCommand(c *command) {
-    fmt.Println("Command: ", c.name)
-    fmt.Println("  Options:")
-    for _, o := range c.opts {
-        fmt.Printf("%#v\n", o);
-    }
-    fmt.Println("  Positional:")
-    for _, p := range c.positionals {
-        fmt.Printf("%#v\n", p);
-    }
-    fmt.Println("  Sub-commands:")
-    for _, sc := range c.subcmds {
-        fmt.Printf("%s\n", sc.name);
-        PrintHelpCommand(sc)
-    }
 }
 
 func errf(format string, args ...interface{}) error {
@@ -232,12 +206,12 @@ func parseLongOpt(c *command, name string, str string, inherit bool) (consumed i
             }
             if o.hasArg {
                 if len(kv) == 2 {
-                    if er = o.v.parse(kv[1]); er != nil { return }
+                    if er = o.v.Parse(kv[1]); er != nil { return }
                     prtf("Set long option %s=%s\n", kv[0], kv[1])
                     consumed = 1
                     set, o.set_ = true, true
                 } else if len(str) > 0 {
-                    if er = o.v.parse(str); er != nil { return }
+                    if er = o.v.Parse(str); er != nil { return }
                     prtf("Set long option %s=%s\n", kv[0], str)
                     consumed = 2
                     set, o.set_ = true, true
@@ -298,13 +272,13 @@ func parseShortOpt(c *command, name string, str string, inherit bool) (consumed 
 
         if o.hasArg {
             if len(name) > 1 {
-                if er = o.v.parse(name[1:]); er != nil { return }
+                if er = o.v.Parse(name[1:]); er != nil { return }
                 prtf("Set short option %s=%s\n", name[:1], name[1:])
                 consumed = 1
                 o.set_ = true
                 break
             } else if len(str) > 0 {
-                if er = o.v.parse(str); er != nil { return }
+                if er = o.v.Parse(str); er != nil { return }
                 prtf("Set short option %s=%s\n", name[:1], str)
                 consumed = 2
                 o.set_ = true
@@ -332,7 +306,7 @@ func parsePositional(c *command, str string) (consumed int, er error) {
         if o.set_ {
             continue
         }
-        if er = o.v.parse(str); er != nil { return }
+        if er = o.v.Parse(str); er != nil { return }
         prtf("Set positianl '%s' to '%s'\n", o.longName, str)
         o.set_ = true
         consumed = 1
@@ -409,4 +383,21 @@ func parseCommand(c *command, args []string) (*command, error) {
 
 func Parse() (*command, error) {
     return parseCommand(&RootCmd, os.Args[1:])
+}
+
+func PrintHelpCommand(c *command) {
+    fmt.Println("Command: ", c.name)
+    fmt.Println("  Options:")
+    for _, o := range c.opts {
+        fmt.Printf("%#v\n", o);
+    }
+    fmt.Println("  Positional:")
+    for _, p := range c.positionals {
+        fmt.Printf("%#v\n", p);
+    }
+    fmt.Println("  Sub-commands:")
+    for _, sc := range c.subcmds {
+        fmt.Printf("%s\n", sc.name);
+        PrintHelpCommand(sc)
+    }
 }
