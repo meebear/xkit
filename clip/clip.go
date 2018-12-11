@@ -253,6 +253,30 @@ func parseShortOpt(c *command, name string, str string) (consumed int, er error)
     return
 }
 
+func parsePositional(c *command, str string) (consumed int, er error) {
+    for _, o := range c.positionals {
+        if o.set_ {
+            continue
+        }
+        fmt.Printf("Set positianl '%s' to '%s'\n", o.longName, str)
+        o.set_ = true
+        consumed = 1
+        break
+    }
+    return
+}
+
+func parseSubCommand(c *command, str string) (consumed int, sc *command, er error) {
+    for _, s := range c.subcmds {
+        if s.name == str {
+            sc = s
+            consumed = 1
+            break
+        }
+    }
+    return
+}
+
 func doParse(c *command, ss []string) (consumed int, sc *command, er error) {
     arg0 := ss[0]
     var arg1 string
@@ -264,20 +288,19 @@ func doParse(c *command, ss []string) (consumed int, sc *command, er error) {
         if len(arg0) == 1 {
             fmt.Println("warning: option '-' ignored")
             consumed = 1
-            return
         } else if arg0[1] == '-' {
-            if len(arg0) == 2 {
-                return // '--' start arguments
-            } else {
+            if len(arg0) > 2 {
                 consumed, er = parseLongOpt(c, arg0[2:], arg1)
-                return
             }
         } else {
             consumed, er = parseShortOpt(c, arg0[1:], arg1)
-            return
         }
     } else {
-        // parsePositional or subcommand
+        if consumed, er = parsePositional(c, arg0); er == nil {
+            if consumed == 0 {
+                consumed, sc, er = parseSubCommand(c, arg0)
+            }
+        }
     }
     return
 }
