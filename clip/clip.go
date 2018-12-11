@@ -191,7 +191,7 @@ func parseLongOpt(c *command, name string, str string) (consumed int, er error) 
                     consumed = 2
                     set, o.set_ = true, true
                 } else {
-                    er = fmt.Errorf("optino '%s' does not take argument", kv[0])
+                    er = fmt.Errorf("optino '%s' need an argument", kv[0])
                     return
                 }
             } else {
@@ -204,6 +204,9 @@ func parseLongOpt(c *command, name string, str string) (consumed int, er error) 
                 set, o.set_ = true, true
             }
         }
+        if (set) {
+            break
+        }
     }
     if !set {
         er = fmt.Errorf("option '%s' not recognized", kv[0])
@@ -212,25 +215,65 @@ func parseLongOpt(c *command, name string, str string) (consumed int, er error) 
 }
 
 func parseShortOpt(c *command, name string, str string) (consumed int, er error) {
+    for len(name) > 0 {
+        var o *option
+        for _, o_ := range c.opts {
+            if name[:1] == o.shortName {
+                o = o_
+                break
+            }
+        }
+        if o == nil {
+            er = fmt.Errorf("option '%s' not recognized", name[:1])
+            break
+        }
+
+        if o.hasArg {
+            if len(name) > 1 {
+                fmt.Printf("Set short option %s=%s\n", name[:1], name[1:])
+                consumed = 1
+                break
+            } else if len(str) > 0 {
+                fmt.Printf("Set short option %s=%s\n", name[:1], str)
+                consumed = 2
+                break
+            } else {
+                er = fmt.Errorf("option '%s' need an argument", name[:1])
+                break
+            }
+        } else {
+            fmt.Printf("Set short option %s\n", name[:1])
+            name = name[1:]
+            consumed = 1
+        }
+    }
+    if er != nil {
+        consumed = 0
+    }
     return
 }
 
-func doParse(c *command, ss []string) (
-      consumed int, sc *command, er error) {
-    if ss[0][0] == '-' {
-        if len(ss[0]) == 1 {
+func doParse(c *command, ss []string) (consumed int, sc *command, er error) {
+    arg0 := ss[0]
+    var arg1 string
+    if len(ss) > 1 {
+        arg1 = ss[1]
+    }
+
+    if arg0[0] == '-' {
+        if len(arg0) == 1 {
             fmt.Println("warning: option '-' ignored")
             consumed = 1
             return
-        } else if ss[0][1] == '-' {
-            if len(ss[0]) == 2 {
+        } else if arg0[1] == '-' {
+            if len(arg0) == 2 {
                 return // '--' start arguments
             } else {
-                consumed, er = parseLongOpt(c, ss[0][2:], ss[1])
+                consumed, er = parseLongOpt(c, arg0[2:], arg1)
                 return
             }
         } else {
-            consumed, er = parseShortOpt(c, ss[0][1:], ss[1])
+            consumed, er = parseShortOpt(c, arg0[1:], arg1)
             return
         }
     } else {
