@@ -21,7 +21,8 @@ var cfg config
 var cfg2 config
 
 func main() {
-    clip.ArgOption(&cfg.port, 'p', "port", "port-0")
+    o := clip.ArgOption(&cfg.port, 'p', "port", "port-0")
+    o.MustSet()
     clip.ArgOption(&cfg.port2, 'P', "Port", "port-1")
     clip.IncrOption(&cfg.verbose, 'v', "verbose", "verbose level")
     clip.FlagOption(&cfg.enabled, 'e', "enable", "enable")

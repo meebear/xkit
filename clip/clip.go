@@ -6,6 +6,7 @@ import (
     "time"
     "strings"
     "net"
+    "bytes"
 )
 
 // need pointer receiver
@@ -13,6 +14,13 @@ type Option interface {
     String() string
     Parse(s string) error
 }
+
+type optSt int
+const (
+    optStDefault optSt = iota
+    optStMustSet
+    optStSet
+);
 
 type option struct {
     v           Option
@@ -27,7 +35,7 @@ type option struct {
     hide        bool
     repeatable  bool
 
-    set_        bool
+    status      optSt
 }
 
 type command struct {
@@ -162,6 +170,11 @@ func (o *option) Repeatable(r bool) *option {
     return o
 }
 
+func (o *option) MustSet() *option {
+    o.status = optStMustSet
+    return o
+}
+
 func errf(format string, args ...interface{}) error {
     return fmt.Errorf(fmt.Sprintf("CommandLine: %s", format), args...)
 }
@@ -200,7 +213,7 @@ func parseLongOpt(c *command, name string, str string, inherit bool) (consumed i
         }
 
         if kv[0] == o.longName {
-            if o.set_ && !o.repeatable {
+            if o.status == optStSet && !o.repeatable {
                 er = errf("option '%s' set more than once", kv[0])
                 return
             }
@@ -209,12 +222,12 @@ func parseLongOpt(c *command, name string, str string, inherit bool) (consumed i
                     if er = o.v.Parse(kv[1]); er != nil { return }
                     prtf("Set long option %s=%s\n", kv[0], kv[1])
                     consumed = 1
-                    set, o.set_ = true, true
+                    set, o.status = true, optStSet
                 } else if len(str) > 0 {
                     if er = o.v.Parse(str); er != nil { return }
                     prtf("Set long option %s=%s\n", kv[0], str)
                     consumed = 2
-                    set, o.set_ = true, true
+                    set, o.status = true, optStSet
                 } else {
                     er = errf("optino '%s' need an argument", kv[0])
                     return
@@ -227,7 +240,7 @@ func parseLongOpt(c *command, name string, str string, inherit bool) (consumed i
                 setNoArgOption(o)
                 prtf("Set long option %s\n", kv[0])
                 consumed = 1
-                set, o.set_ = true, true
+                set, o.status = true, optStSet
             }
         }
         if (set) {
@@ -265,7 +278,7 @@ func parseShortOpt(c *command, name string, str string, inherit bool) (consumed 
             }
             break
         }
-        if o.set_ && !o.repeatable {
+        if o.status == optStSet && !o.repeatable {
             er = errf("optino '%s' set more than once", name[:1])
             break
         }
@@ -275,13 +288,13 @@ func parseShortOpt(c *command, name string, str string, inherit bool) (consumed 
                 if er = o.v.Parse(name[1:]); er != nil { return }
                 prtf("Set short option %s=%s\n", name[:1], name[1:])
                 consumed = 1
-                o.set_ = true
+                o.status = optStSet
                 break
             } else if len(str) > 0 {
                 if er = o.v.Parse(str); er != nil { return }
                 prtf("Set short option %s=%s\n", name[:1], str)
                 consumed = 2
-                o.set_ = true
+                o.status =  optStSet
                 break
             } else {
                 er = errf("option '%s' need an argument", name[:1])
@@ -292,7 +305,7 @@ func parseShortOpt(c *command, name string, str string, inherit bool) (consumed 
             prtf("Set short option %s\n", name[:1])
             name = name[1:]
             consumed = 1
-            o.set_ = true
+            o.status = optStSet
         }
     }
     if er != nil {
@@ -303,12 +316,12 @@ func parseShortOpt(c *command, name string, str string, inherit bool) (consumed 
 
 func parsePositional(c *command, str string) (consumed int, er error) {
     for _, o := range c.positionals {
-        if o.set_ {
+        if o.status == optStSet {
             continue
         }
         if er = o.v.Parse(str); er != nil { return }
         prtf("Set positianl '%s' to '%s'\n", o.longName, str)
-        o.set_ = true
+        o.status = optStSet
         consumed = 1
         break
     }
@@ -354,6 +367,23 @@ func doParse(c *command, ss []string) (consumed int, sc *command, er error) {
     return
 }
 
+func checkMustSetOptions(c *command) error {
+    for c != nil {
+        for _, o := range c.opts {
+            if o.status == optStMustSet {
+                return fmt.Errorf("option '%s' not given", o.longName) //fixme
+            }
+        }
+        for _, o := range c.positionals {
+            if o.status == optStMustSet {
+                return fmt.Errorf("positional option '%s' not given", o.longName)
+            }
+        }
+        c = c.parent_
+    }
+    return nil
+}
+
 func parseCommand(c *command, args []string) (*command, error) {
     var err error
     for len(args) > 0 {
@@ -378,6 +408,9 @@ func parseCommand(c *command, args []string) (*command, error) {
             break
         }
     }
+    if err = checkMustSetOptions(c); err != nil {
+        c = nil
+    }
     return c, err
 }
 
@@ -400,4 +433,49 @@ func PrintHelpCommand(c *command) {
         fmt.Printf("%s\n", sc.name);
         PrintHelpCommand(sc)
     }
+}
+
+func formatText(text string, width, indent, indentFrom uint) string {
+    var buf bytes.Buffer
+    indstr := "\n"
+
+    if indent > 0 {
+        buf.WriteByte('\n')
+        for i:=0; i<int(indent); i++ {
+            buf.WriteByte(' ')
+        }
+        indstr = buf.String()
+        buf.Reset()
+
+        if indentFrom == 0 {
+            buf.Write([]byte(indstr[1:]))
+        }
+    }
+
+    var w, wlen int
+    var word string
+    for len(text) > 0 {
+        if ix := strings.IndexAny(text, " "); ix >= 0 {
+            wlen = ix + 1
+            word = text[:wlen]
+            text = text[wlen:]
+        } else {
+            word = text
+            text = ""
+        }
+
+        if w + wlen > int(width) + 1 {
+            buf.Write([]byte(indstr))
+            w = wlen
+        } else {
+            w += wlen
+        }
+        buf.Write([]byte(word))
+    }
+
+    return buf.String()
+}
+
+func HelpCommand(c *command) {
+    // TODO
 }
