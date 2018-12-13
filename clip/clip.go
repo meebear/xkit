@@ -49,6 +49,9 @@ type command struct {
     parent_     *command
 }
 
+var helpOption = option{ shortName: 'h', longName: "help",
+                    desc: "command usage" }
+
 var RootCmd command
 var progInfo string
 
@@ -111,29 +114,42 @@ func (c *command) PositionalCustom(v Option, name, desc string) *option {
     return o
 }
 
-func (c *command) ArgOption(v interface{}, shortName byte, longName, desc string) *option {
-    o := &option{v: optConv(v), shortName: shortName, longName: longName, desc: desc, hasArg: true}
+func (c *command) appendOption(o *option) *option {
+    if o.shortName == helpOption.shortName {
+        helpOption.shortName = 0
+    }
+    if o.longName == helpOption.longName {
+        helpOption.longName = ""
+    }
     c.opts = append(c.opts, o)
     return o
+}
+
+func (c *command) ArgOption(v interface{}, shortName byte, longName, desc string) *option {
+    o := &option{v: optConv(v), shortName: shortName, longName: longName,
+                 desc: desc, hasArg: true}
+    return c.appendOption(o)
 }
 
 func (c *command) ArgOptionCustom(v Option, shortName byte, longName, desc string) *option {
     o := &option{v: v, shortName: shortName, desc: desc, hasArg: true}
-    c.opts = append(c.opts, o)
-    return o
+    return c.appendOption(o)
 }
 
 func (c *command) FlagOption(v *bool, shortName byte, longName, desc string) *option {
     o := &option{v: (*clipBool)(v), shortName: shortName, longName: longName, desc: desc}
-    c.opts = append(c.opts, o)
-    return o
+    return c.appendOption(o)
 }
 
 func (c *command) IncrOption(v *int, shortName byte, longName, desc string) *option {
     o := &option{v: (*clipInt)(v), shortName: shortName, longName: longName,
         desc: desc, incrStep: 1, repeatable: true}
-    c.opts = append(c.opts, o)
-    return o
+    return c.appendOption(o)
+}
+
+func SetHelpOption(shortName byte, longName string) {
+    helpOption.shortName = shortName
+    helpOption.longName = longName
 }
 
 func (c *command) SubCommand(name, desc string) *command {
@@ -206,6 +222,9 @@ func parseLongOpt(c *command, name string, str string) (consumed int, er error) 
     kv := strings.Split(name, "=")
     set := false
     for _, o := range c.opts {
+        if o == &helpOption {
+            continue
+        }
         if kv[0] == o.longName {
             if o.status == optStSet && !o.repeatable {
                 er = errf("option '%s' set more than once", kv[0])
@@ -243,6 +262,10 @@ func parseLongOpt(c *command, name string, str string) (consumed int, er error) 
     }
 
     if !set {
+        if kv[0] == helpOption.longName {
+            HelpCommand(c)
+            os.Exit(0)
+        }
         consumed = 0
         if er == nil {
             er = errf("option '%s' not recognized", kv[0])
@@ -255,12 +278,19 @@ func parseShortOpt(c *command, name string, str string) (consumed int, er error)
     for len(name) > 0 {
         var o *option
         for _, o_ := range c.opts {
+            if o_ == &helpOption {
+                continue
+            }
             if name[0] == o_.shortName {
                 o = o_
                 break
             }
         }
         if o == nil || o.v == nil {
+            if name[0] == helpOption.shortName {
+                HelpCommand(c)
+                os.Exit(0)
+            }
             er = errf("option '%s' not recognized", name[:1])
             break
         }
@@ -401,24 +431,10 @@ func parseCommand(c *command, args []string) (*command, error) {
 }
 
 func Parse() (*command, error) {
+    if helpOption.shortName != 0 || len(helpOption.longName) > 0 {
+        RootCmd.opts = append(RootCmd.opts, &helpOption)
+    }
     return parseCommand(&RootCmd, os.Args[1:])
-}
-
-func PrintHelpCommand(c *command) {
-    fmt.Println("Command: ", c.name)
-    fmt.Println("  Options:")
-    for _, o := range c.opts {
-        fmt.Printf("%#v\n", o);
-    }
-    fmt.Println("  Positional:")
-    for _, p := range c.positionals {
-        fmt.Printf("%#v\n", p);
-    }
-    fmt.Println("  Sub-commands:")
-    for _, sc := range c.subcmds {
-        fmt.Printf("%s\n", sc.name);
-        PrintHelpCommand(sc)
-    }
 }
 
 func formatText(text string, width, indent, indentFrom uint) string {
@@ -462,16 +478,38 @@ func formatText(text string, width, indent, indentFrom uint) string {
     return buf.String()
 }
 
-func HelpCommand(c *command) {
-    if (c != &RootCmd) {
-        fmt.Printf("Command: %s\n", c.name)
-    }
-    var buf bytes.Buffer
-    var m [][2]string
+func prtList(lst [][2]string, kind string) (n int) {
     var w int
+    for _, e := range lst {
+        if w < len(e[0]) && len(e[0]) < 32 {
+            w = len(e[0])
+        }
+    }
 
-    for _, o := range c.opts {
-        w = 0
+    if w < 20 { w = 20 }
+    if w > 32 { w = 32 }
+    w += 2
+    for i, o := range lst {
+        if i == 0 {
+            fmt.Printf("%s:\n\n", kind)
+        }
+        if len(o[0]) > w-2 {
+            fmt.Printf("%s\n", o[0])
+            fmt.Printf("%s\n", formatText(o[1], uint(80-w), uint(w), 0))
+        } else {
+            fmt.Printf("%-[1]*s", w, o[0])
+            fmt.Printf("%s\n", formatText(o[1], uint(80-w), uint(w), 1))
+        }
+        n++
+    }
+    return n
+}
+
+func prtOptions(os []*option, kind string) {
+    var buf bytes.Buffer
+    var lst [][2]string
+
+    for _, o := range os {
         buf.Reset()
         buf.Write([]byte("  "))
         if o.shortName != 0 {
@@ -483,29 +521,50 @@ func HelpCommand(c *command) {
             buf.Write([]byte(fmt.Sprintf("--%s", o.longName)))
         }
         ostr := buf.String()
-        if w < len(ostr) {
-            w = len(ostr)
-        }
 
         buf.Reset()
         buf.Write([]byte(o.desc))
-        if o.status == optStDefault {
-            buf.Write([]byte(fmt.Sprintf(" (default: %s)", o.v.String())))
-        } else if o.status == optStMustSet {
-            buf.Write([]byte(" (must set)"))
+        if o.v != nil {
+            if o.status == optStDefault {
+                dft := o.v.String()
+                if len(dft) > 0 {
+                    buf.Write([]byte(fmt.Sprintf(" (default: %s)", dft)))
+                }
+            } else if o.status == optStMustSet {
+                buf.Write([]byte(" (must set)"))
+            }
         }
 
         desc := buf.String()
-        m = append(m, [2]string{ostr, desc})
+        lst = append(lst, [2]string{ostr, desc})
     }
 
-    for _, o := range m {
-        fmt.Printf("%s", o[0])
-        fmt.Printf("%s\n", formatText(o[1], uint(80-w), uint(w), 1))
+    if prtList(lst, kind) > 0 {
+        fmt.Println()
+    }
+}
+
+func HelpCommand(c *command) {
+    if (c != &RootCmd) {
+        fmt.Printf("Command: %s\n", c.name)
+    }
+    prtOptions(c.opts, "Options")
+    prtOptions(c.positionals, "Positionals")
+
+    var lst [][2]string
+    for _, sc := range c.subcmds {
+        lst = append(lst, [2]string{fmt.Sprintf("  %s", sc.name), sc.desc})
+    }
+    if prtList(lst, "Sub-Commands") > 0 {
+        fmt.Println()
     }
 }
 
 func Help() {
     fmt.Printf("%s\n", formatText(progInfo, 80, 0, 0))
     HelpCommand(&RootCmd)
+}
+
+func ProgDescription(desc string) {
+    progInfo = desc
 }

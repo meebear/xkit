@@ -21,10 +21,14 @@ var cfg config
 var cfg2 config
 
 func main() {
-    o :=clip.ArgOption(&cfg.port, 'p', "port", "port-0")
-    o.MustSet()
+    clip.ArgOption(&cfg.port, 'p', "port", "port-0")
     clip.ArgOption(&cfg.port2, 'P', "Port", "port-1")
-    clip.IncrOption(&cfg.verbose, 'v', "verbose", "verbose level")
+    clip.IncrOption(&cfg.verbose, 'v',
+            "verbose-and-long-option-name",
+            "verbose level is a very long and unnecessarily long option with" +
+            "an again very very long and hard to read description in English" +
+            "written by a Chinese guy who's English is still in very preliminery" +
+            "level...")
     clip.FlagOption(&cfg.enabled, 'e', "enable", "enable")
     clip.Positional(&cfg.target, "target", "target")
     clip.Positional(&cfg.target2, "target2", "target2")
@@ -35,15 +39,9 @@ func main() {
     c.ArgOption(&cfg2.port, 'p', "port", "port-0")
     c.ArgOption(&cfg2.port2, 'P', "Port", "port-1")
     c.IncrOption(&cfg2.verbose, 'v', "verbose", "verbose level")
-    c.FlagOption(&cfg2.enabled, 'e', "enable", "enable")
+    c.FlagOption(&cfg2.enabled, 'h', "enable", "enable")
     c.Positional(&cfg2.target, "target", "target")
     c.Positional(&cfg2.target2, "target2", "target2")
-
-    clip.Help()
-    return
-
-    clip.PrintHelpCommand(&clip.RootCmd)
-    fmt.Printf("\n\n")
 
     if _, err := clip.Parse(); err != nil {
         fmt.Println(">> ", err)
