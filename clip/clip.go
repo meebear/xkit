@@ -50,6 +50,7 @@ type command struct {
 }
 
 var RootCmd command
+var progInfo string
 
 func ArgOption(v interface{}, shortName byte, longName, desc string) *option {
     return RootCmd.ArgOption(v, shortName, longName, desc)
@@ -462,5 +463,49 @@ func formatText(text string, width, indent, indentFrom uint) string {
 }
 
 func HelpCommand(c *command) {
-    // TODO
+    if (c != &RootCmd) {
+        fmt.Printf("Command: %s\n", c.name)
+    }
+    var buf bytes.Buffer
+    var m [][2]string
+    var w int
+
+    for _, o := range c.opts {
+        w = 0
+        buf.Reset()
+        buf.Write([]byte("  "))
+        if o.shortName != 0 {
+            buf.WriteByte('-')
+            buf.WriteByte(o.shortName)
+            buf.WriteByte(',')
+        }
+        if len(o.longName) > 0 {
+            buf.Write([]byte(fmt.Sprintf("--%s", o.longName)))
+        }
+        ostr := buf.String()
+        if w < len(ostr) {
+            w = len(ostr)
+        }
+
+        buf.Reset()
+        buf.Write([]byte(o.desc))
+        if o.status == optStDefault {
+            buf.Write([]byte(fmt.Sprintf(" (default: %s)", o.v.String())))
+        } else if o.status == optStMustSet {
+            buf.Write([]byte(" (must set)"))
+        }
+
+        desc := buf.String()
+        m = append(m, [2]string{ostr, desc})
+    }
+
+    for _, o := range m {
+        fmt.Printf("%s", o[0])
+        fmt.Printf("%s\n", formatText(o[1], uint(80-w), uint(w), 1))
+    }
+}
+
+func Help() {
+    fmt.Printf("%s\n", formatText(progInfo, 80, 0, 0))
+    HelpCommand(&RootCmd)
 }

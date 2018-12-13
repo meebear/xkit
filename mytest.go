@@ -21,7 +21,7 @@ var cfg config
 var cfg2 config
 
 func main() {
-    o := clip.ArgOption(&cfg.port, 'p', "port", "port-0")
+    o :=clip.ArgOption(&cfg.port, 'p', "port", "port-0")
     o.MustSet()
     clip.ArgOption(&cfg.port2, 'P', "Port", "port-1")
     clip.IncrOption(&cfg.verbose, 'v', "verbose", "verbose level")
@@ -38,6 +38,9 @@ func main() {
     c.FlagOption(&cfg2.enabled, 'e', "enable", "enable")
     c.Positional(&cfg2.target, "target", "target")
     c.Positional(&cfg2.target2, "target2", "target2")
+
+    clip.Help()
+    return
 
     clip.PrintHelpCommand(&clip.RootCmd)
     fmt.Printf("\n\n")
