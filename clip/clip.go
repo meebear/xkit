@@ -201,17 +201,10 @@ func setNoArgOption(o *option) {
     }
 }
 
-func parseLongOpt(c *command, name string, str string, inherit bool) (consumed int, er error) {
+func parseLongOpt(c *command, name string, str string) (consumed int, er error) {
     kv := strings.Split(name, "=")
     set := false
     for _, o := range c.opts {
-        if o.v == nil {
-            if c.parent_ != nil {
-                consumed, er = parseLongOpt(c.parent_, name, str, true)
-            }
-            break
-        }
-
         if kv[0] == o.longName {
             if o.status == optStSet && !o.repeatable {
                 er = errf("option '%s' set more than once", kv[0])
@@ -249,19 +242,15 @@ func parseLongOpt(c *command, name string, str string, inherit bool) (consumed i
     }
 
     if !set {
-        if inherit && c.parent_ != nil {
-            consumed, er = parseLongOpt(c.parent_, name, str, true)
-        } else {
-            consumed = 0
-            if er == nil {
-                er = errf("option '%s' not recognized", kv[0])
-            }
+        consumed = 0
+        if er == nil {
+            er = errf("option '%s' not recognized", kv[0])
         }
     }
     return
 }
 
-func parseShortOpt(c *command, name string, str string, inherit bool) (consumed int, er error) {
+func parseShortOpt(c *command, name string, str string) (consumed int, er error) {
     for len(name) > 0 {
         var o *option
         for _, o_ := range c.opts {
@@ -271,11 +260,7 @@ func parseShortOpt(c *command, name string, str string, inherit bool) (consumed 
             }
         }
         if o == nil || o.v == nil {
-            if inherit && c.parent_ != nil {
-                consumed, er = parseShortOpt(c.parent_, name, str, true)
-            } else {
-                er = errf("option '%s' not recognized", name[:1])
-            }
+            er = errf("option '%s' not recognized", name[:1])
             break
         }
         if o.status == optStSet && !o.repeatable {
@@ -352,10 +337,10 @@ func doParse(c *command, ss []string) (consumed int, sc *command, er error) {
             consumed = 1
         } else if arg0[1] == '-' {
             if len(arg0) > 2 {
-                consumed, er = parseLongOpt(c, arg0[2:], arg1, false)
+                consumed, er = parseLongOpt(c, arg0[2:], arg1)
             }
         } else {
-            consumed, er = parseShortOpt(c, arg0[1:], arg1, false)
+            consumed, er = parseShortOpt(c, arg0[1:], arg1)
         }
     } else {
         if consumed, er = parsePositional(c, arg0); er == nil {
