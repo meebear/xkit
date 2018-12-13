@@ -47,6 +47,8 @@ type command struct {
     Arguments   []string
 
     parent_     *command
+
+    Run         func() error
 }
 
 var helpOption = option{ shortName: 'h', longName: "help",
@@ -75,8 +77,12 @@ func Positional(v interface{}, name, desc string) *option {
     return RootCmd.Positional(v, name, desc)
 }
 
-func SubCommand(name, desc string) *command {
-    return RootCmd.SubCommand(name, desc)
+func SubCommand(name, desc string, run func() error) *command {
+    return RootCmd.SubCommand(name, desc, run)
+}
+
+func SetRun(run func() error) {
+    RootCmd.Run = run
 }
 
 func optConv(v interface{}) Option {
@@ -152,8 +158,8 @@ func SetHelpOption(shortName byte, longName string) {
     helpOption.longName = longName
 }
 
-func (c *command) SubCommand(name, desc string) *command {
-    sc := &command{name: name, desc: desc, parent_: c}
+func (c *command) SubCommand(name, desc string, run func() error) *command {
+    sc := &command{name: name, desc: desc, parent_: c, Run: run}
     c.subcmds = append(c.subcmds, sc)
     return sc
 }

@@ -35,7 +35,7 @@ func main() {
     clip.ArgOption(&cfg.dura, 'd', "dura", "duration")
     clip.ArgOption(&cfg.ip, 'i', "ip", "duration")
 
-    c := clip.SubCommand("cmd", "next level")
+    c := clip.SubCommand("cmd", "next level", nil)
     c.ArgOption(&cfg2.port, 'p', "port", "port-0")
     c.ArgOption(&cfg2.port2, 'P', "Port", "port-1")
     c.IncrOption(&cfg2.verbose, 'v', "verbose", "verbose level")
