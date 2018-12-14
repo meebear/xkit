@@ -46,9 +46,10 @@ type command struct {
 
     Arguments   []string
 
-    parent_     *command
-
     Run         func() error
+
+    hide        bool
+    parent_     *command
 }
 
 var helpOption = option{ shortName: 'h', longName: "help",
@@ -106,6 +107,11 @@ func optConv(v interface{}) Option {
     default: panic(fmt.Sprintf("use _Custom() for option type %T", v))
     }
     return ov
+}
+
+func (c *command) Hide() *command {
+    c.hide = true
+    return c
 }
 
 func (c *command) Positional(v interface{}, name, desc string) *option {
@@ -269,7 +275,10 @@ func parseLongOpt(c *command, name string, str string) (consumed int, er error) 
 
     if !set {
         if kv[0] == helpOption.longName {
-            HelpCommand(c)
+            HelpCommand(c, false)
+            os.Exit(0)
+        } else if kv[0] == "help-a" {
+            HelpCommand(c, true)
             os.Exit(0)
         }
         consumed = 0
@@ -294,7 +303,7 @@ func parseShortOpt(c *command, name string, str string) (consumed int, er error)
         }
         if o == nil || o.v == nil {
             if name[0] == helpOption.shortName {
-                HelpCommand(c)
+                HelpCommand(c, false)
                 os.Exit(0)
             }
             er = errf("option '%s' not recognized", name[:1])
@@ -511,11 +520,14 @@ func prtList(lst [][2]string, kind string) (n int) {
     return n
 }
 
-func prtOptions(os []*option, kind string) {
+func prtOptions(os []*option, kind string, all bool) {
     var buf bytes.Buffer
     var lst [][2]string
 
     for _, o := range os {
+        if !all && o.hide {
+            continue
+        }
         buf.Reset()
         buf.Write([]byte("  "))
         if o.shortName != 0 {
@@ -550,25 +562,27 @@ func prtOptions(os []*option, kind string) {
     }
 }
 
-func HelpCommand(c *command) {
+func HelpCommand(c *command, all bool) {
     if (c != &RootCmd) {
         fmt.Printf("Command: %s\n", c.name)
     }
-    prtOptions(c.opts, "Options")
-    prtOptions(c.positionals, "Positionals")
+    prtOptions(c.opts, "Options", all)
+    prtOptions(c.positionals, "Positionals", all)
 
     var lst [][2]string
     for _, sc := range c.subcmds {
-        lst = append(lst, [2]string{fmt.Sprintf("  %s", sc.name), sc.desc})
+        if all || !sc.hide {
+            lst = append(lst, [2]string{fmt.Sprintf("  %s", sc.name), sc.desc})
+        }
     }
     if prtList(lst, "Sub-Commands") > 0 {
         fmt.Println()
     }
 }
 
-func Help() {
+func Help(all bool) {
     fmt.Printf("%s\n", formatText(progInfo, 80, 0, 0))
-    HelpCommand(&RootCmd)
+    HelpCommand(&RootCmd, all)
 }
 
 func ProgDescription(desc string) {

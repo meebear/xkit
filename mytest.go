@@ -2,7 +2,7 @@ package main
 
 import (
     "xkit/mytest/clip"
-    "xkit/mytest/packd"
+    //"xkit/mytest/packd"
     "fmt"
     "time"
     "net"
@@ -36,10 +36,12 @@ func main() {
     clip.FlagOption(&cfg.enabled, 'e', "enable", "enable")
     clip.Positional(&cfg.target, "target", "target")
     clip.Positional(&cfg.target2, "target2", "target2")
-    clip.ArgOption(&cfg.dura, 'd', "dura", "duration")
+    o := clip.ArgOption(&cfg.dura, 'd', "dura", "duration")
+    o.Hide()
     clip.ArgOption(&cfg.ip, 'i', "ip", "duration")
 
     c := clip.SubCommand("cmd", "next level", nil)
+    c.Hide()
     c.ArgOption(&cfg2.port, 'p', "port", "port-0")
     c.ArgOption(&cfg2.port2, 'P', "Port", "port-1")
     c.IncrOption(&cfg2.verbose, 'v', "verbose", "verbose level")
