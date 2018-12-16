@@ -563,7 +563,9 @@ func prtOptions(os []*Option, kind string, all bool) {
 }
 
 func HelpCommand(c *Command, all bool) {
-    if (c != &RootCmd) {
+    if (c == &RootCmd) {
+        fmt.Printf("%s\n\n", formatText(progInfo, 80, 0, 0))
+    } else {
         fmt.Printf("Command: %s\n", c.name)
     }
     prtOptions(c.opts, "Options", all)
@@ -578,11 +580,6 @@ func HelpCommand(c *Command, all bool) {
     if prtList(lst, "Sub-Commands") > 0 {
         fmt.Println()
     }
-}
-
-func Help(all bool) {
-    fmt.Printf("%s\n", formatText(progInfo, 80, 0, 0))
-    HelpCommand(&RootCmd, all)
 }
 
 func ProgDescription(desc string) {
