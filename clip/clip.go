@@ -10,7 +10,7 @@ import (
 )
 
 // need pointer receiver
-type Option interface {
+type IOption interface {
     String() string
     Parse(s string) error
 }
@@ -22,8 +22,8 @@ const (
     optStSet
 );
 
-type option struct {
-    v           Option
+type Option struct {
+    v           IOption
     shortName   byte
     longName    string
     desc        string
@@ -38,47 +38,47 @@ type option struct {
     status      optSt
 }
 
-type command struct {
+type Command struct {
     name, desc  string
-    opts        []*option
-    positionals []*option
-    subcmds     []*command
+    opts        []*Option
+    positionals []*Option
+    subcmds     []*Command
 
     Arguments   []string
 
     Run         func() error
 
     hide        bool
-    parent_     *command
+    parent_     *Command
 }
 
-var helpOption = option{ shortName: 'h', longName: "help",
-                    desc: "command usage" }
+var helpOption = Option{ shortName: 'h', longName: "help",
+                    desc: "Command usage" }
 
-var RootCmd command
+var RootCmd Command
 var progInfo string
 
-func ArgOption(v interface{}, shortName byte, longName, desc string) *option {
+func ArgOption(v interface{}, shortName byte, longName, desc string) *Option {
     return RootCmd.ArgOption(v, shortName, longName, desc)
 }
 
-func ArgOptionCustom(v Option, shortName byte, longName, desc string) *option {
+func ArgOptionCustom(v IOption, shortName byte, longName, desc string) *Option {
     return RootCmd.ArgOptionCustom(v, shortName, longName, desc)
 }
 
-func FlagOption(v *bool, shortName byte, longName, desc string) *option {
+func FlagOption(v *bool, shortName byte, longName, desc string) *Option {
     return RootCmd.FlagOption(v, shortName, longName, desc)
 }
 
-func IncrOption(v *int, shortName byte, longName, desc string) *option {
+func IncrOption(v *int, shortName byte, longName, desc string) *Option {
     return RootCmd.IncrOption(v, shortName, longName, desc)
 }
 
-func Positional(v interface{}, name, desc string) *option {
+func Positional(v interface{}, name, desc string) *Option {
     return RootCmd.Positional(v, name, desc)
 }
 
-func SubCommand(name, desc string, run func() error) *command {
+func SubCommand(name, desc string, run func() error) *Command {
     return RootCmd.SubCommand(name, desc, run)
 }
 
@@ -86,8 +86,8 @@ func SetRun(run func() error) {
     RootCmd.Run = run
 }
 
-func optConv(v interface{}) Option {
-    var ov Option
+func optConv(v interface{}) IOption {
+    var ov IOption
     switch v := v.(type) {
     case *bool:   ov = (*clipBool)(v)
     case *int:    ov = (*clipInt)(v)
@@ -104,29 +104,29 @@ func optConv(v interface{}) Option {
     case *string: ov = (*clipString)(v)
     case *time.Duration: ov = (*clipDura)(v)
     case *net.IP: ov = (*clipIP)(v)
-    default: panic(fmt.Sprintf("use _Custom() for option type %T", v))
+    default: panic(fmt.Sprintf("use _Custom() for Option type %T", v))
     }
     return ov
 }
 
-func (c *command) Hide() *command {
+func (c *Command) Hide() *Command {
     c.hide = true
     return c
 }
 
-func (c *command) Positional(v interface{}, name, desc string) *option {
-    o := &option{v: optConv(v), longName: name, desc: desc}
+func (c *Command) Positional(v interface{}, name, desc string) *Option {
+    o := &Option{v: optConv(v), longName: name, desc: desc}
     c.positionals = append(c.positionals, o)
     return o
 }
 
-func (c *command) PositionalCustom(v Option, name, desc string) *option {
-    o := &option{v: v, longName: name, desc: desc}
+func (c *Command) PositionalCustom(v IOption, name, desc string) *Option {
+    o := &Option{v: v, longName: name, desc: desc}
     c.positionals = append(c.positionals, o)
     return o
 }
 
-func (c *command) appendOption(o *option) *option {
+func (c *Command) appendOption(o *Option) *Option {
     if o.shortName == helpOption.shortName {
         helpOption.shortName = 0
     }
@@ -137,24 +137,24 @@ func (c *command) appendOption(o *option) *option {
     return o
 }
 
-func (c *command) ArgOption(v interface{}, shortName byte, longName, desc string) *option {
-    o := &option{v: optConv(v), shortName: shortName, longName: longName,
+func (c *Command) ArgOption(v interface{}, shortName byte, longName, desc string) *Option {
+    o := &Option{v: optConv(v), shortName: shortName, longName: longName,
                  desc: desc, hasArg: true}
     return c.appendOption(o)
 }
 
-func (c *command) ArgOptionCustom(v Option, shortName byte, longName, desc string) *option {
-    o := &option{v: v, shortName: shortName, desc: desc, hasArg: true}
+func (c *Command) ArgOptionCustom(v IOption, shortName byte, longName, desc string) *Option {
+    o := &Option{v: v, shortName: shortName, desc: desc, hasArg: true}
     return c.appendOption(o)
 }
 
-func (c *command) FlagOption(v *bool, shortName byte, longName, desc string) *option {
-    o := &option{v: (*clipBool)(v), shortName: shortName, longName: longName, desc: desc}
+func (c *Command) FlagOption(v *bool, shortName byte, longName, desc string) *Option {
+    o := &Option{v: (*clipBool)(v), shortName: shortName, longName: longName, desc: desc}
     return c.appendOption(o)
 }
 
-func (c *command) IncrOption(v *int, shortName byte, longName, desc string) *option {
-    o := &option{v: (*clipInt)(v), shortName: shortName, longName: longName,
+func (c *Command) IncrOption(v *int, shortName byte, longName, desc string) *Option {
+    o := &Option{v: (*clipInt)(v), shortName: shortName, longName: longName,
         desc: desc, incrStep: 1, repeatable: true}
     return c.appendOption(o)
 }
@@ -164,15 +164,15 @@ func SetHelpOption(shortName byte, longName string) {
     helpOption.longName = longName
 }
 
-func (c *command) SubCommand(name, desc string, run func() error) *command {
-    sc := &command{name: name, desc: desc, parent_: c, Run: run}
+func (c *Command) SubCommand(name, desc string, run func() error) *Command {
+    sc := &Command{name: name, desc: desc, parent_: c, Run: run}
     c.subcmds = append(c.subcmds, sc)
     return sc
 }
 
-func (o *option) SetIncrStep(step int) *option {
+func (o *Option) SetIncrStep(step int) *Option {
     if o.incrStep == 0 {
-        panic("cannot set increment step on non-increment option")
+        panic("cannot set increment step on non-increment Option")
     }
     if step == 0 {
         panic("increment step cannot be 0")
@@ -181,25 +181,25 @@ func (o *option) SetIncrStep(step int) *option {
     return o
 }
 
-func (o *option) ReverseFlag() *option {
+func (o *Option) ReverseFlag() *Option {
     if _, ok := o.v.(*clipBool); !ok {
-        panic("ReverseFlag on non-bool option")
+        panic("ReverseFlag on non-bool Option")
     }
     o.reverseFlag = true
     return o
 }
 
-func (o *option) Hide() *option {
+func (o *Option) Hide() *Option {
     o.hide = true
     return o
 }
 
-func (o *option) Repeatable(r bool) *option {
+func (o *Option) Repeatable(r bool) *Option {
     o.repeatable = r
     return o
 }
 
-func (o *option) MustSet() *option {
+func (o *Option) MustSet() *Option {
     o.status = optStMustSet
     return o
 }
@@ -212,25 +212,25 @@ func prtf(format string, args ...interface{}) {
     fmt.Printf(fmt.Sprintf("CommandLine: %s", format), args...)
 }
 
-func setNoArgOption(o *option) {
+func setNoArgOption(o *Option) {
     if o.incrStep != 0 {
         if v_, ok := o.v.(*clipInt); ok {
             v := (*int)(v_);
             *v += o.incrStep
         } else {
-            panic("internal: none integer option has non-zero incrStep")
+            panic("internal: none integer Option has non-zero incrStep")
         }
     } else {
         if v_, ok := o.v.(*clipBool); ok {
             v := (*bool)(v_)
             *v = !o.reverseFlag
         } else {
-            panic("internal: none boolean option has zero incrStep")
+            panic("internal: none boolean Option has zero incrStep")
         }
     }
 }
 
-func parseLongOpt(c *command, name string, str string) (consumed int, er error) {
+func parseLongOpt(c *Command, name string, str string) (consumed int, er error) {
     kv := strings.Split(name, "=")
     set := false
     for _, o := range c.opts {
@@ -239,18 +239,18 @@ func parseLongOpt(c *command, name string, str string) (consumed int, er error) 
         }
         if kv[0] == o.longName {
             if o.status == optStSet && !o.repeatable {
-                er = errf("option '%s' set more than once", kv[0])
+                er = errf("Option '%s' set more than once", kv[0])
                 return
             }
             if o.hasArg {
                 if len(kv) == 2 {
                     if er = o.v.Parse(kv[1]); er != nil { return }
-                    prtf("Set long option %s=%s\n", kv[0], kv[1])
+                    prtf("Set long Option %s=%s\n", kv[0], kv[1])
                     consumed = 1
                     set, o.status = true, optStSet
                 } else if len(str) > 0 {
                     if er = o.v.Parse(str); er != nil { return }
-                    prtf("Set long option %s=%s\n", kv[0], str)
+                    prtf("Set long Option %s=%s\n", kv[0], str)
                     consumed = 2
                     set, o.status = true, optStSet
                 } else {
@@ -263,7 +263,7 @@ func parseLongOpt(c *command, name string, str string) (consumed int, er error) 
                     return
                 }
                 setNoArgOption(o)
-                prtf("Set long option %s\n", kv[0])
+                prtf("Set long Option %s\n", kv[0])
                 consumed = 1
                 set, o.status = true, optStSet
             }
@@ -283,15 +283,15 @@ func parseLongOpt(c *command, name string, str string) (consumed int, er error) 
         }
         consumed = 0
         if er == nil {
-            er = errf("option '%s' not recognized", kv[0])
+            er = errf("Option '%s' not recognized", kv[0])
         }
     }
     return
 }
 
-func parseShortOpt(c *command, name string, str string) (consumed int, er error) {
+func parseShortOpt(c *Command, name string, str string) (consumed int, er error) {
     for len(name) > 0 {
-        var o *option
+        var o *Option
         for _, o_ := range c.opts {
             if o_ == &helpOption {
                 continue
@@ -306,7 +306,7 @@ func parseShortOpt(c *command, name string, str string) (consumed int, er error)
                 HelpCommand(c, false)
                 os.Exit(0)
             }
-            er = errf("option '%s' not recognized", name[:1])
+            er = errf("Option '%s' not recognized", name[:1])
             break
         }
         if o.status == optStSet && !o.repeatable {
@@ -317,23 +317,23 @@ func parseShortOpt(c *command, name string, str string) (consumed int, er error)
         if o.hasArg {
             if len(name) > 1 {
                 if er = o.v.Parse(name[1:]); er != nil { return }
-                prtf("Set short option %s=%s\n", name[:1], name[1:])
+                prtf("Set short Option %s=%s\n", name[:1], name[1:])
                 consumed = 1
                 o.status = optStSet
                 break
             } else if len(str) > 0 {
                 if er = o.v.Parse(str); er != nil { return }
-                prtf("Set short option %s=%s\n", name[:1], str)
+                prtf("Set short Option %s=%s\n", name[:1], str)
                 consumed = 2
                 o.status =  optStSet
                 break
             } else {
-                er = errf("option '%s' need an argument", name[:1])
+                er = errf("Option '%s' need an argument", name[:1])
                 break
             }
         } else {
             setNoArgOption(o)
-            prtf("Set short option %s\n", name[:1])
+            prtf("Set short Option %s\n", name[:1])
             name = name[1:]
             consumed = 1
             o.status = optStSet
@@ -345,7 +345,7 @@ func parseShortOpt(c *command, name string, str string) (consumed int, er error)
     return
 }
 
-func parsePositional(c *command, str string) (consumed int, er error) {
+func parsePositional(c *Command, str string) (consumed int, er error) {
     for _, o := range c.positionals {
         if o.status == optStSet {
             continue
@@ -359,7 +359,7 @@ func parsePositional(c *command, str string) (consumed int, er error) {
     return
 }
 
-func parseSubCommand(c *command, str string) (consumed int, sc *command, er error) {
+func parseSubCommand(c *Command, str string) (consumed int, sc *Command, er error) {
     for _, s := range c.subcmds {
         if s.name == str {
             sc = s
@@ -370,7 +370,7 @@ func parseSubCommand(c *command, str string) (consumed int, sc *command, er erro
     return
 }
 
-func doParse(c *command, ss []string) (consumed int, sc *command, er error) {
+func doParse(c *Command, ss []string) (consumed int, sc *Command, er error) {
     arg0 := ss[0]
     var arg1 string
     if len(ss) > 1 {
@@ -379,7 +379,7 @@ func doParse(c *command, ss []string) (consumed int, sc *command, er error) {
 
     if arg0[0] == '-' {
         if len(arg0) == 1 {
-            fmt.Println("warning: option '-' ignored")
+            fmt.Println("warning: Option '-' ignored")
             consumed = 1
         } else if arg0[1] == '-' {
             if len(arg0) > 2 {
@@ -398,16 +398,16 @@ func doParse(c *command, ss []string) (consumed int, sc *command, er error) {
     return
 }
 
-func checkMustSetOptions(c *command) error {
+func checkMustSetOptions(c *Command) error {
     for c != nil {
         for _, o := range c.opts {
             if o.status == optStMustSet {
-                return fmt.Errorf("option '%s' not given", o.longName) //fixme
+                return fmt.Errorf("Option '%s' not given", o.longName) //fixme
             }
         }
         for _, o := range c.positionals {
             if o.status == optStMustSet {
-                return fmt.Errorf("positional option '%s' not given", o.longName)
+                return fmt.Errorf("positional Option '%s' not given", o.longName)
             }
         }
         c = c.parent_
@@ -415,7 +415,7 @@ func checkMustSetOptions(c *command) error {
     return nil
 }
 
-func parseCommand(c *command, args []string) (*command, error) {
+func parseCommand(c *Command, args []string) (*Command, error) {
     var err error
     for len(args) > 0 {
         n := 1
@@ -445,7 +445,7 @@ func parseCommand(c *command, args []string) (*command, error) {
     return c, err
 }
 
-func Parse() (*command, error) {
+func Parse() (*Command, error) {
     if helpOption.shortName != 0 || len(helpOption.longName) > 0 {
         RootCmd.opts = append(RootCmd.opts, &helpOption)
     }
@@ -520,7 +520,7 @@ func prtList(lst [][2]string, kind string) (n int) {
     return n
 }
 
-func prtOptions(os []*option, kind string, all bool) {
+func prtOptions(os []*Option, kind string, all bool) {
     var buf bytes.Buffer
     var lst [][2]string
 
@@ -562,7 +562,7 @@ func prtOptions(os []*option, kind string, all bool) {
     }
 }
 
-func HelpCommand(c *command, all bool) {
+func HelpCommand(c *Command, all bool) {
     if (c != &RootCmd) {
         fmt.Printf("Command: %s\n", c.name)
     }

@@ -2,7 +2,6 @@ package main
 
 import (
     "xkit/mytest/clip"
-    //"xkit/mytest/packd"
     "fmt"
     "time"
     "net"
@@ -22,9 +21,6 @@ var cfg config
 var cfg2 config
 
 func main() {
-    packd.WalkDir(".")
-    return
-
     clip.ArgOption(&cfg.port, 'p', "port", "port-0")
     clip.ArgOption(&cfg.port2, 'P', "Port", "port-1")
     clip.IncrOption(&cfg.verbose, 'v',
