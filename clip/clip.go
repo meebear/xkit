@@ -49,7 +49,7 @@ type Command struct {
     Run         func() error
 
     hide        bool
-    parent_     *Command
+    parent     *Command
 }
 
 var helpOption = Option{ shortName: 'h', longName: "help",
@@ -165,7 +165,7 @@ func SetHelpOption(shortName byte, longName string) {
 }
 
 func (c *Command) SubCommand(name, desc string, run func() error) *Command {
-    sc := &Command{name: name, desc: desc, parent_: c, Run: run}
+    sc := &Command{name: name, desc: desc, parent: c, Run: run}
     c.subcmds = append(c.subcmds, sc)
     return sc
 }
@@ -410,7 +410,7 @@ func checkMustSetOptions(c *Command) error {
                 return fmt.Errorf("positional Option '%s' not given", o.longName)
             }
         }
-        c = c.parent_
+        c = c.parent
     }
     return nil
 }

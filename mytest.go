@@ -9,9 +9,15 @@ func main() {
     clip.ProgDescription("mytest v0.0")
     packCmdInit(&clip.RootCmd)
 
-    if _, err := clip.Parse(); err != nil {
-        fmt.Println(">> ", err)
+    var err error
+    c, err := clip.Parse()
+    if err == nil {
+        err = c.Run()
     }
 
-    fmt.Printf("done\n")
+    if err == nil {
+        fmt.Printf("done\n")
+    } else {
+        fmt.Printf("error: %s\n", err)
+    }
 }
