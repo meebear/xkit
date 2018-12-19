@@ -8,6 +8,7 @@ import (
 func main() {
     clip.ProgDescription("mytest v0.0")
     packCmdInit(&clip.RootCmd)
+    awsCmdInit(&clip.RootCmd)
 
     var err error
     c, err := clip.Parse()
