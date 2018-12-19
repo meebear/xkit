@@ -12,7 +12,7 @@ func main() {
 
     var err error
     c, err := clip.Parse()
-    if err == nil {
+    if err == nil && c.Run != nil {
         err = c.Run()
     }
 
