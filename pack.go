@@ -13,7 +13,7 @@ func packCmdInit(c *clip.Command) {
     sc.ArgOption(&path, 'p', "path", "path to pack/unpack").MustSet()
 }
 
-func packRun() error {
+func packRun(c *clip.Command) error {
     fmt.Printf("packRun running... path=%s\n", path)
     return nil
 }
