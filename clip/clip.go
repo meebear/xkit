@@ -360,12 +360,30 @@ func parsePositional(c *Command, str string) (consumed int, er error) {
 }
 
 func parseSubCommand(c *Command, str string) (consumed int, sc *Command, er error) {
+    var scTmp *Command
     for _, s := range c.subcmds {
-        if s.name == str {
-            sc = s
-            consumed = 1
-            break
+        scTmp = nil
+        if len(s.name) == len(str) {
+            if s.name == str {
+                scTmp = s
+            }
+        } else if len(s.name) > len(str) {
+            if strings.HasPrefix(s.name, str) {
+                scTmp = s
+            }
         }
+        if scTmp != nil {
+            if sc != nil {
+                er = fmt.Errorf("ambiguous command '%s'", str)
+                sc = nil
+                break
+            } else {
+                sc = scTmp
+            }
+        }
+    }
+    if sc != nil {
+        consumed = 1
     }
     return
 }
